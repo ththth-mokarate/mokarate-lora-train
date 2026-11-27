@@ -1,0 +1,68 @@
+---
+job: extension
+config:
+  name: "mokarate_face_v1"
+  process:
+    - type: 'sd_trainer'
+      training_folder: "output"
+      device: cuda:0
+      network:
+        type: "lora"
+        linear: 16
+        linear_alpha: 16
+        network_kwargs:
+          ignore_if_contains: ["layers.22."]
+      save:
+        dtype: float16
+        save_every: 250
+        max_step_saves_to_keep: 10
+      datasets:
+        - folder_path: "/app/dataset"
+          caption_ext: "txt"
+          caption_dropout_rate: 0.05
+          shuffle_tokens: false
+          cache_latents_to_disk: true
+          resolution: [1024]
+      train:
+        batch_size: 1
+        steps: 2000
+        gradient_accumulation: 1
+        train_unet: true
+        train_text_encoder: false
+        gradient_checkpointing: true
+        cache_text_embeddings: true
+        noise_scheduler: "flowmatch"
+        timestep_type: "shift"
+        optimizer: "adamw8bit"
+        lr: 1e-4
+        ema_config:
+          use_ema: false
+        dtype: bf16
+      model:
+        name_or_path: "OpenMOSS-Team/MOSS-Image-Base"
+        arch: "moss_image:base"
+        quantize: true
+        qtype: "convrot8"
+        quantize_te: true
+        qtype_te: "convrot8"
+        low_vram: true
+        model_kwargs:
+          uncond_skip_layers: [22]
+      sample:
+        sampler: "flowmatch"
+        sample_every: 250
+        sample_start_step: 0
+        width: 1024
+        height: 1024
+        prompts:
+          - "mokarate, a young woman with an enormous bust and a tiny waist, wearing a tight white short-sleeve top, an extremely short black pleated miniskirt and black thigh-high socks, standing in a library aisle, front view, gentle smile"
+          - "mokarate, a young woman with an enormous bust and a tiny waist, wearing a tight white short-sleeve top, an extremely short black pleated miniskirt and black thigh-high socks, sitting by the window of a cozy cafe, a cup of hot mocha latte on the table"
+          - "mokarate, a young woman with an enormous bust and a tiny waist, wearing a tight white short-sleeve top, an extremely short black pleated miniskirt and black thigh-high socks, standing inside a commuter train holding a pole"
+        neg: ""
+        seed: 42
+        walk_seed: true
+        guidance_scale: 3
+        sample_steps: 30
+meta:
+  name: "[name]"
+  version: '1.0'
