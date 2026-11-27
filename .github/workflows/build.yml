@@ -12,7 +12,10 @@ name: Build Mokarate LoRA train image
 # (the pattern the working ComfyUI images use). train3 notes: apt now
 # also installs libgl1 + libglib2.0-0 — ai-toolkit's opencv import
 # crashed with "libGL.so.1: cannot open shared object file" on the
-# pytorch runtime base image.
+# pytorch runtime base image. train4 notes: apt now also installs
+# build-essential + ninja-build — Triton JIT-compiles a kernel right
+# after model load and crashed with "Failed to find C compiler" on
+# the runtime base image (no gcc/cc).
 on:
   workflow_dispatch:
 
@@ -29,7 +32,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      TARGET: ghcr.io/ththth-mokarate/mokarate-lora-train:train3
+      TARGET: ghcr.io/ththth-mokarate/mokarate-lora-train:train4
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -118,7 +121,7 @@ jobs:
           '
           docker run --rm --entrypoint python3 "$TEST_TAG" -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda)"
 
-      - name: Promote test tag to train3
+      - name: Promote test tag to train4
         run: |
           set -euo pipefail
           EXPECTED=$(crane digest "$TEST_TAG")

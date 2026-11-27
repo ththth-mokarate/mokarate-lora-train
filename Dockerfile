@@ -1,6 +1,6 @@
 FROM pytorch/pytorch:2.9.1-cuda12.8-cudnn9-runtime
 
-RUN apt-get update && apt-get install -y --no-install-recommends git curl libgl1 libglib2.0-0 \
+RUN apt-get update && apt-get install -y --no-install-recommends git curl libgl1 libglib2.0-0 build-essential ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
