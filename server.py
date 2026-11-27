@@ -9,11 +9,30 @@
 """
 import os
 import re
+import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlparse
 
 ROOT = "/app/ai-toolkit/output"
 os.makedirs(ROOT, exist_ok=True)
+
+
+class DualStackServer(ThreadingHTTPServer):
+    """ThreadingHTTPServer listening on "::" with IPV6_V6ONLY off, so the
+    server is reachable over both IPv6 and IPv4. Salad's gateway routes
+    to containers over IPv6, while the earlier IPv4-only 0.0.0.0 bind
+    never answered through it (the working ComfyUI wrapper is a Go
+    binary, dual-stack by default)."""
+
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        try:
+            self.socket.setsockopt(socket.IPPROTO_IPV6,
+                                   getattr(socket, "IPV6_V6ONLY", 26), 0)
+        except OSError:
+            pass
+        super().server_bind()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -83,4 +102,4 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("0.0.0.0", 3000), Handler).serve_forever()
+    DualStackServer(("::", 3000), Handler).serve_forever()

@@ -6,7 +6,10 @@ name: Build Mokarate LoRA train image
 # /ready probe and for downloading logs/checkpoints) and then runs the
 # training. A plain docker build+push is used; the Verify step asserts
 # every layer is < 10 GB (GHCR limit) and the total is < 35 GB (Salad
-# limit) before the test tag is promoted to :train1.
+# limit) before the test tag is promoted to :train2. train2 notes: the
+# server now binds dual-stack ("::", IPV6_V6ONLY off) because Salad's
+# gateway routes over IPv6, and startup moved from ENTRYPOINT to CMD
+# (the pattern the working ComfyUI images use).
 on:
   workflow_dispatch:
 
@@ -23,7 +26,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      TARGET: ghcr.io/ththth-mokarate/mokarate-lora-train:train1
+      TARGET: ghcr.io/ththth-mokarate/mokarate-lora-train:train2
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -84,18 +87,19 @@ jobs:
           target = json.load(open("target.json"))
           manifest = json.load(open("manifest.json"))
           assert target["architecture"] == "amd64" and target["os"] == "linux"
-          assert target["config"].get("Entrypoint") == ["/app/entrypoint.sh"], target["config"].get("Entrypoint")
+          assert not target["config"].get("Entrypoint"), target["config"].get("Entrypoint")
+          assert target["config"].get("Cmd") == ["/app/entrypoint.sh"], target["config"].get("Cmd")
           layers = manifest["layers"]
           total = sum(x["size"] for x in layers) + manifest["config"]["size"]
           print(f"compressed image: {total/1e9:.2f} GB; largest layer: {max(x['size'] for x in layers)/1e9:.2f} GB; layers: {len(layers)}")
           assert all(x["size"] < 10_000_000_000 for x in layers), "GHCR layer size limit exceeded"
           assert total < 35_000_000_000, "Salad image size limit (35 GB compressed) exceeded"
-          print("manifest verified: Entrypoint, arch, size within limits")
+          print("manifest verified: Cmd (no Entrypoint), arch, size within limits")
           PY
           crane digest "$TEST_TAG"
           # ai-toolkit commit + dataset + config, checked from inside the
-          # image. The image ENTRYPOINT is the training entrypoint, so
-          # every check overrides it. None of these need a GPU.
+          # image. The image CMD is the training entrypoint script, so
+          # every check overrides the entrypoint. None of these need a GPU.
           AI_TK_COMMIT=$(docker run --rm --entrypoint git "$TEST_TAG" -C /app/ai-toolkit rev-parse HEAD)
           echo "ai-toolkit commit in image: $AI_TK_COMMIT"
           echo "ai-toolkit commit: $AI_TK_COMMIT" >> "$GITHUB_STEP_SUMMARY"
@@ -111,7 +115,7 @@ jobs:
           '
           docker run --rm --entrypoint python3 "$TEST_TAG" -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda)"
 
-      - name: Promote test tag to train1
+      - name: Promote test tag to train2
         run: |
           set -euo pipefail
           EXPECTED=$(crane digest "$TEST_TAG")
