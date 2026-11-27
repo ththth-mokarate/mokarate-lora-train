@@ -6,10 +6,13 @@ name: Build Mokarate LoRA train image
 # /ready probe and for downloading logs/checkpoints) and then runs the
 # training. A plain docker build+push is used; the Verify step asserts
 # every layer is < 10 GB (GHCR limit) and the total is < 35 GB (Salad
-# limit) before the test tag is promoted to :train2. train2 notes: the
+# limit) before the test tag is promoted to :train3. train2 notes: the
 # server now binds dual-stack ("::", IPV6_V6ONLY off) because Salad's
 # gateway routes over IPv6, and startup moved from ENTRYPOINT to CMD
-# (the pattern the working ComfyUI images use).
+# (the pattern the working ComfyUI images use). train3 notes: apt now
+# also installs libgl1 + libglib2.0-0 — ai-toolkit's opencv import
+# crashed with "libGL.so.1: cannot open shared object file" on the
+# pytorch runtime base image.
 on:
   workflow_dispatch:
 
@@ -26,7 +29,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      TARGET: ghcr.io/ththth-mokarate/mokarate-lora-train:train2
+      TARGET: ghcr.io/ththth-mokarate/mokarate-lora-train:train3
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -115,7 +118,7 @@ jobs:
           '
           docker run --rm --entrypoint python3 "$TEST_TAG" -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda)"
 
-      - name: Promote test tag to train2
+      - name: Promote test tag to train3
         run: |
           set -euo pipefail
           EXPECTED=$(crane digest "$TEST_TAG")
